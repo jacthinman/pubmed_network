@@ -72,7 +72,7 @@ def makeAdjList(authors, file_name="pubmed_authors.txt"):
 # TODO check about adding weights for multiple occurence of same paper
 # TODO handle cycles between authors?  Might be cytoscape/nx parsing
 
-def gatherData(search_term, email="lwrpratt@gmail.com"):
+def gatherData(search_term, limit=1500, email="lwrpratt@gmail.com"):
   """
   Queries pubmed for papers with the given search_term using the BioPython
   toolkit's Entrez and Medline modules.
@@ -97,6 +97,8 @@ def gatherData(search_term, email="lwrpratt@gmail.com"):
     print "no old data to import, creating new papers dict"
     papers = {}
 
+  existing_authors = len(authors)
+
   # NCBI identification
   Entrez.email = email
 
@@ -113,8 +115,9 @@ def gatherData(search_term, email="lwrpratt@gmail.com"):
   webenv = result["WebEnv"]
   qkey = result["QueryKey"]
 
-  batch = 30
+  batch = 40
   records = {}
+  cont = True
 
   for p in range(0, num_papers, batch):
     fhandle = Entrez.efetch(db='pubmed', rettype='medline', retmode='text',
@@ -150,6 +153,9 @@ def gatherData(search_term, email="lwrpratt@gmail.com"):
               au.sort()
     fhandle.close()
     print "one more done"
+    if len(authors) >= existing_authors + limit:
+      return (authors, papers)
+
 
   return (authors, papers)
 
@@ -163,6 +169,8 @@ if __name__ == '__main__':
   print "ARGUMENTS: 1-search term, 2-filename\n"
   search_term = sys.argv[1]
   # fname = sys.argv[2]
+  # limit = sys.argv[2]
+
   print "gathering data..."
   (Authors, Papers)  = gatherData(search_term)
   print "Total Papers: %s" % len(Papers)

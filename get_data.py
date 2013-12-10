@@ -61,6 +61,7 @@ def writeToJSON(obj_to_write, file_name):
      f.closed
 
 def makeAdjList(authors, file_name="pubmed_authors.txt"):
+  #TODO 
   with open(file_name, 'w') as f:
     for a in authors:
       au = a.replace(' ','_')
@@ -72,7 +73,7 @@ def makeAdjList(authors, file_name="pubmed_authors.txt"):
 # TODO check about adding weights for multiple occurence of same paper
 # TODO handle cycles between authors?  Might be cytoscape/nx parsing
 
-def gatherData(search_term, limit=1500, email="lwrpratt@gmail.com"):
+def gatherData(search_term, limit=500, email="lwrpratt@gmail.com"):
   """
   Queries pubmed for papers with the given search_term using the BioPython
   toolkit's Entrez and Medline modules.

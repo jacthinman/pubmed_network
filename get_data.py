@@ -61,6 +61,7 @@ def writeToJSON(obj_to_write, file_name):
      f.closed
 
 def makeAdjList(authors, file_name="pubmed_authors.txt"):
+  #TODO 
   with open(file_name, 'w') as f:
     for a in authors:
       au = a.replace(' ','_')
@@ -89,7 +90,7 @@ def writeForInfomap(authors, file_name="pubmed_authors_infomap.txt"):
 # TODO check about adding weights for multiple occurence of same paper
 # TODO handle cycles between authors?  Might be cytoscape/nx parsing
 
-def gatherData(search_term, email="lwrpratt@gmail.com"):
+def gatherData(search_term, limit=500, email="lwrpratt@gmail.com"):
   """
   Queries pubmed for papers with the given search_term using the BioPython
   toolkit's Entrez and Medline modules.
@@ -97,63 +98,82 @@ def gatherData(search_term, email="lwrpratt@gmail.com"):
   Saves each paper's authors in a dict with all connected authors and
   their repsective connection strength
   """
-
-  try:               # import existing author data
+  
+  # Import Existing Author & Paper data
+  try:
     with open('authors.json', 'r') as auths:
       authors = json.load(auths)
       auths.closed
-  except IOError:    # none to import
+  except IOError:
     print "no old data to import, creating new authors dict"
     authors = {}
-
-  try:               # import existing paper ids
+  try:
     with open('papers.json', 'r') as paps:
       papers = json.load(paps)
       paps.closed
-  except IOError:    # none to import
+  except IOError:
     print "no old data to import, creating new papers dict"
     papers = {}
 
-  Entrez.email = email       # NCBI identification
+  existing_authors = len(authors)
+
+  # NCBI identification
+  Entrez.email = email
 
   # See how many papers match this query
-  handle = Entrez.esearch(db='pubmed', term=search_term)
+  handle = Entrez.esearch(db='pubmed', term=search_term, usehistory='y')
   result = Entrez.read(handle)
-  num_papers = result['Count']
-  print num_papers + " papers found with esearch."
+  handle.close()
+  num_papers = int(result['Count'])
+  print str(num_papers) + " papers found with esearch."
 
-  #TODO Why does this give a huge number when ids (below) is so short?
-
-  # Get the info on these papers
+  # Get info on these papers, persistent session info
   ids = result['IdList']
-  handle = Entrez.efetch(db='pubmed', id=ids, rettype='medline', retmode='text')
-  records = Medline.parse(handle)
-  print "efetch complete. %s results." % str(len(ids))
+  #assert num_papers == len(ids)
+  webenv = result["WebEnv"]
+  qkey = result["QueryKey"]
 
+  batch = 40
+  records = {}
+  cont = True
 
-  for record in records:
-    idnum = record.get('PMID', '?') 
+  for p in range(0, num_papers, batch):
+    fhandle = Entrez.efetch(db='pubmed', rettype='medline', retmode='text',
+                                 retstart=p, retmax=batch,
+                                 webenv=webenv, query_key=qkey)
+    records = Medline.parse(fhandle)
 
-    if idnum in papers:
-      print "Already have %s" % str(idnum)
-      pass # Already have this paper
+    for r in records:
+      if r:
+        idnum = r.get('PMID', '?') 
 
-    else:
-      papers.update({idnum:{"Title" : record.get('TI', '?'), "Authors" : record.get('AU','?'),"Keywords":record.get('MH','?')}})
+        if idnum in papers:
+          print "Already have %s" % str(idnum)
+          pass # Already have this paper
 
-      au = record.get('AU', '?')
-      au.sort()
-      for a in au:
-        if a in authors:
-          au.remove(a)
-          authors = updateAuthor(authors, a, au)
-          au.append(a) # TODO this is gross and should not stay this way
-          au.sort()
         else:
-          au.remove(a)
-          authors = addAuthor(authors, a, au)
-          au.append(a)
+          papers.update({idnum:{"Title" : r.get('TI', '?'), "Authors" : r.get('AU','?'),"Keywords":r.get('MH','?')}})
+
+          au = r.get('AU', '?')
+          if type(au) == str:
+            au = [au]
           au.sort()
+          for a in au:
+            if a in authors:
+              au.remove(a)
+              authors = updateAuthor(authors, a, au)
+              au.append(a) # TODO this is gross and should not stay this way
+              au.sort()
+            else:
+              au.remove(a)
+              authors = addAuthor(authors, a, au)
+              au.append(a)
+              au.sort()
+    fhandle.close()
+    print "one more done"
+    if len(authors) >= existing_authors + limit:
+      return (authors, papers)
+
 
   return (authors, papers)
 
@@ -167,8 +187,12 @@ if __name__ == '__main__':
   print "ARGUMENTS: 1-search term, 2-filename\n"
   search_term = sys.argv[1]
   # fname = sys.argv[2]
+  # limit = sys.argv[2]
+
   print "gathering data..."
   (Authors, Papers)  = gatherData(search_term)
+  print "Total Papers: %s" % len(Papers)
+  print "Total Authors: %s" % len(Authors)
 
   # save data structures for future runs of gatherData()
   print "writing JSON files..."

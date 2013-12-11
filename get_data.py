@@ -61,12 +61,16 @@ def writeToJSON(obj_to_write, file_name):
      f.closed
 
 def makeAdjList(authors, file_name="pubmed_authors.txt"):
+  added_authors = {}
   with open(file_name, 'w') as f:
     for a in authors:
       au = a.replace(' ','_')
       for co in authors[a]:
         coau = co.replace(' ','_')
-        f.write(au + ' ' + coau + ' ' + str(authors[a][co]) + '\n')
+        if (au,coau) not in added_authors and (coau,au) not in added_authors: # add to file and to added_authors
+          added_authors[(au,coau)] = authors[a][co]
+          added_authors[(coau,au)] = authors[a][co]
+          f.write(au + ' ' + coau + ' ' + str(authors[a][co]) + '\n')
   f.close()
 
 def writeForInfomap(authors, file_name="pubmed_authors_infomap.txt"):
@@ -201,5 +205,5 @@ if __name__ == '__main__':
   makeAdjList(Authors)
 
   # create file for infomap to read in as network
-  print "creating numbered author adjacency list..."
+  print "creating numbered author adjacency list... \n"
   writeForInfomap(Authors)

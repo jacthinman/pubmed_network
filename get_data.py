@@ -153,7 +153,7 @@ def gatherData(search_term, limit=200, email="lwrpratt@gmail.com"):
           pass # Already have this paper
 
         else:
-          papers.update({idnum:{"Title" : r.get('TI', '?'), "Authors" : r.get('AU','?'),"Keywords":r.get('MH','?')}})
+          papers.update({idnum:{"Title" : r.get('TI', '?'), "Authors" : r.get('AU','?'),"Keywords" : r.get('MH','?'), "Search Term" : search_term}})
 
           au = r.get('AU', '?')
           if type(au) == str:
@@ -163,7 +163,7 @@ def gatherData(search_term, limit=200, email="lwrpratt@gmail.com"):
             if a in authors:
               au.remove(a)
               authors = updateAuthor(authors, a, au)
-              au.append(a) # TODO this is gross and should not stay this way
+              au.append(a)
               au.sort()
             else:
               au.remove(a)

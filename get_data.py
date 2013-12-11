@@ -178,6 +178,8 @@ def gatherData(search_term, limit=200, email="lwrpratt@gmail.com"):
 
   return (authors, papers)
 
+  def SearchAgain():
+
       
 
 #-------------------------------------------------------------------------#

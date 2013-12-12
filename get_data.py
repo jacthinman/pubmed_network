@@ -13,7 +13,7 @@ as a Counter object with all linked authors and their respective connection
 weights.
 """
 
-import sys, json
+import sys, json, re
 from collections import Counter
 from Bio import Entrez, Medline
 
@@ -171,16 +171,59 @@ def gatherData(search_term, limit=200, email="lwrpratt@gmail.com"):
               au.append(a)
               au.sort()
     fhandle.close()
-    print "one more done"
+    numauth = len(authors)
     if len(authors) >= existing_authors + limit:
-      return (authors, papers)
-
-
-  return (authors, papers)
-
-  def SearchAgain():
-
+    print "searched %s, now have %s authors." % (search_term , str(numauth))
       
+      return (authors, papers, numauth)
+
+
+  return (authors, papers, numauth)
+
+def gatherTerms(papers):
+  """
+  Given a list of keywords, Author names, etc, gathers more data.
+  :term_limit sets a (roughly) max number of authors to be added by
+    a single search
+  """
+  terms = {} # list of terms to search for
+
+  # create list of terms based on existing papers
+  for entry in papers:
+    for au in papers[entry]['Authors']:
+      terms[au] = 0 # zero until term is searched
+
+    ''' for now we aren't going to recurse on keywords
+    for ke in papers[paper]['Keywords']:
+      terms.append(ke)
+    '''
+  return terms
+  
+def searchAgain(terms, term_limit, total_limit):
+  
+  # search through terms in queue
+  for t in terms:
+    if terms[t] == 0:
+      (a, p, numauth) = gatherData(t, term_limit)
+      terms[t] = 1
+      writeToJSON(a, 'authors.json')
+      writeToJSON(p, 'papers.json')
+    else:
+      pass
+    if numauth >= total_limit:
+      return(a,p)
+    
+  # grow term list and search again
+  temp = gatherTerms(p)
+  for te in temp:
+    if te not in terms:
+      terms[te] = 0
+
+  writeToJSON(terms, 'search_terms.json')
+
+  searchAgain(terms, term_limit, total_limit)
+
+
 
 #-------------------------------------------------------------------------#
 #                          Script starts here                             #
@@ -192,10 +235,17 @@ if __name__ == '__main__':
   # fname = sys.argv[2]
   # limit = sys.argv[2]
 
-  print "gathering data..."
-  (Authors, Papers)  = gatherData(search_term)
-  print "Total Papers: %s" % len(Papers)
-  print "Total Authors: %s" % len(Authors)
+  print "gathering data round 1"
+  (A, P, numauth) = gatherData(search_term)
+  print "Total Papers: %s" % len(P)
+  print "Total Authors: %s\n" % len(A) #or just use numauth
+
+  # recurse on info from original search
+  print "gathering data round 2+"
+  terms = gatherTerms(P)
+  (Authors, Papers) = searchAgain(terms, 350, 4500)
+  print "Total Papers: %s" % len(P)
+  print "Total Authors: %s\n" % len(A)
 
   # save data structures for future runs of gatherData()
   print "writing JSON files..."
@@ -203,9 +253,6 @@ if __name__ == '__main__':
   writeToJSON(Papers, 'papers.json')
 
   # create file for networkx or cytoscape to read in as network
-  print "creating author adjacency list..."
+  print "creating author adjacency lists..."
   makeAdjList(Authors)
-
-  # create file for infomap to read in as network
-  print "creating numbered author adjacency list... \n"
-  writeForInfomap(Authors)
+  writeForInfomap(Authors) # for infomap
